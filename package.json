@@ -1,0 +1,38 @@
+{
+  "name": "evolutiva-inventario",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently -k -n api,web -c yellow,cyan \"npm:dev:api\" \"npm:dev:web\"",
+    "dev:web": "vite",
+    "dev:api": "mkdir -p dist && wrangler pages dev dist --port 8788 --persist-to .wrangler/state",
+    "build": "tsc -b && vite build",
+    "typecheck": "tsc -b",
+    "db:init:local": "wrangler d1 execute inventario-db --local --persist-to .wrangler/state --file=schema.sql",
+    "db:init:remote": "wrangler d1 execute inventario-db --remote --file=schema.sql",
+    "usuario": "node scripts/crear-usuario.mjs",
+    "deploy": "npm run build && wrangler pages deploy"
+  },
+  "dependencies": {
+    "@hono/zod-validator": "^0.9.1",
+    "@tanstack/react-query": "^5.108.2",
+    "hono": "^4.13.19",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "react-router": "^8.5.2",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261120.1",
+    "@tailwindcss/vite": "^4.3.5",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.3.0",
+    "concurrently": "^10.0.7",
+    "tailwindcss": "^4.3.5",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.8",
+    "wrangler": "^4.165.0"
+  }
+}

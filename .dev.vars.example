@@ -1,0 +1,3 @@
+# Copiar a .dev.vars (NO se commitea). Solo para `wrangler pages dev`.
+SESSION_SECRET="cambiar-por-una-cadena-aleatoria-de-al-menos-32-caracteres"
+PIN_PEPPER="cambiar-por-otra-cadena-aleatoria-distinta"

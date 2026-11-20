@@ -1,0 +1,17 @@
+@import 'tailwindcss';
+
+@layer base {
+  html {
+    -webkit-tap-highlight-color: transparent;
+    text-size-adjust: 100%;
+  }
+  body {
+    @apply bg-neutral-100 text-neutral-950 antialiased;
+    font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    overscroll-behavior-y: none;
+  }
+  /* Inputs >= 16px: evita el zoom automático de iOS al enfocar */
+  input, select, textarea {
+    font-size: max(1rem, 16px);
+  }
+}

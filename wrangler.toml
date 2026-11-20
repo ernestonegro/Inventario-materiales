@@ -1,0 +1,52 @@
+# =============================================================================
+# Evolutiva Norte · Control de Inventario por Obra
+# Cloudflare Pages (frontend estático en ./dist) + Pages Functions (/functions)
+# =============================================================================
+name = "evolutiva-inventario"
+compatibility_date = "2026-11-01"
+compatibility_flags = ["nodejs_compat"]
+pages_build_output_dir = "./dist"
+
+# -----------------------------------------------------------------------------
+# Variables NO secretas (los secretos van con `wrangler pages secret put`)
+#   Secretos requeridos en producción:
+#     SESSION_SECRET  -> clave HMAC para firmar la cookie de sesión (>= 32 chars)
+#     PIN_PEPPER      -> clave HMAC para hashear los PIN de encargados
+#   En local se definen en .dev.vars (ver .dev.vars.example)
+# -----------------------------------------------------------------------------
+[vars]
+# "pin"    -> login con PIN de encargado (cookie de sesión firmada)
+# "access" -> confía en Cloudflare Access (Zero Trust) y valida el JWT
+#             Cf-Access-Jwt-Assertion contra ACCESS_TEAM_DOMAIN / ACCESS_AUD
+AUTH_MODE = "pin"
+ACCESS_TEAM_DOMAIN = ""          # ej. "evolutivanorte.cloudflareaccess.com"
+ACCESS_AUD = ""                  # Application Audience (AUD) tag de la app en Access
+ACCESS_ADMINS = ""               # emails con rol admin en modo access, separados por coma
+SESSION_TTL_HORAS = "336"        # 14 días: el encargado no reteclea el PIN cada día
+MAX_FOTO_MB = "6"
+
+# -----------------------------------------------------------------------------
+# Cloudflare D1 (SQLite)
+#   Crear: npx wrangler d1 create inventario-db   -> pegar el database_id abajo
+#   Esquema: npm run db:init:remote
+# -----------------------------------------------------------------------------
+[[d1_databases]]
+binding = "DB"
+database_name = "inventario-db"
+database_id = "00000000-0000-0000-0000-000000000000"  # <- reemplazar
+
+# -----------------------------------------------------------------------------
+# Cloudflare R2 (fotos de remitos y estado de herramientas). Bucket PRIVADO:
+# las imágenes solo se sirven a través de GET /api/remito/:key (autenticado).
+#   Crear: npx wrangler r2 bucket create evolutiva-remitos
+# -----------------------------------------------------------------------------
+[[r2_buckets]]
+binding = "BUCKET"
+bucket_name = "evolutiva-remitos"
+
+# Entorno de preview (deploys de ramas). Opcional: apuntar a una DB/bucket aparte.
+# [env.preview]
+# [[env.preview.d1_databases]]
+# binding = "DB"
+# database_name = "inventario-db-preview"
+# database_id = "..."
