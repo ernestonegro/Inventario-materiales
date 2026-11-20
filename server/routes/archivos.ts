@@ -54,7 +54,7 @@ export const archivos = new Hono<AppEnv>()
 
   /**
    * GET /api/remito/:key  (la key incluye "/": remitos/2026-11/<uuid>.jpg)
-   * Sirve el objeto desde el bucket PRIVADO solo a usuarios autenticados.
+   * Sirve el objeto desde el bucket PRIVADO (no se expone el bucket entero).
    * El patrón estricto evita path traversal o lectura de otras claves.
    */
   .get('/remito/:key{.+}', async (c) => {

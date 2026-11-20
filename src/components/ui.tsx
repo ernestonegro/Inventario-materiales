@@ -119,4 +119,13 @@ export function Chip({ children, color = 'neutro' }: { children: ReactNode; colo
   return <span className={cx('inline-block rounded-md px-2 py-0.5 text-sm font-bold', c)}>{children}</span>;
 }
 
+/** Campo "Responsable" (obligatorio), recordado en el teléfono. */
+export function CampoResponsable({ valor, onChange }: { valor: string; onChange: (v: string) => void }) {
+  return (
+    <Campo etiqueta="Responsable (quién carga)">
+      <Input value={valor} onChange={(e) => onChange(e.target.value)} required minLength={2} maxLength={80} placeholder="Tu nombre" autoComplete="name" />
+    </Campo>
+  );
+}
+
 export { cx };

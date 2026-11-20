@@ -4,10 +4,11 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { ETIQUETA_ESTADO_HERRAMIENTA, type EstadoHerramienta, type Herramienta } from '../../shared/types';
 import { api, enviarMovimiento } from '../lib/api';
 import { fmtFecha, nuevoId } from '../lib/format';
+import { useResponsable } from '../lib/responsable';
 import { useHerramienta, useObras } from '../lib/queries';
 import { FotoCaptura } from '../components/FotoCaptura';
 import { FotoRemito } from '../components/FotoRemito';
-import { Aviso, Boton, Campo, Cargando, Encabezado, Input, Pagina, Select, Textarea, cx } from '../components/ui';
+import { Aviso, Boton, Campo, CampoResponsable, Cargando, Encabezado, Input, Pagina, Select, Textarea, cx } from '../components/ui';
 
 type Panel = null | 'transferir' | 'baja' | 'foto';
 
@@ -113,6 +114,7 @@ export function HerramientaPage() {
 
 function Transferir({ h, onListo }: { h: Herramienta; onListo: (m: string) => void }) {
   const obras = useObras();
+  const [quien, setQuien] = useResponsable();
   const [movId] = useState(nuevoId);
   const [destino, setDestino] = useState('');
   const [resp, setResp] = useState('');
@@ -124,12 +126,13 @@ function Transferir({ h, onListo }: { h: Herramienta; onListo: (m: string) => vo
 
   const enviar = async () => {
     if (!destino) return setError('Elegí la obra de destino');
+    if (quien.trim().length < 2) return setError('Indicá quién es el responsable');
     setEnviando(true);
     setError('');
     try {
       const r = await enviarMovimiento(
         `/herramientas/${h.id}/transferir`,
-        { mov_id: movId, obra_destino_id: destino, responsable_cargo: resp || undefined, notas, foto_key: foto },
+        { mov_id: movId, responsable_nombre: quien, obra_destino_id: destino, responsable_cargo: resp || undefined, notas, foto_key: foto },
         `Transferencia ${h.item_nombre} ${h.codigo ?? ''}`,
       );
       onListo(r.encolado ? 'Sin señal: la transferencia se enviará al volver la conexión.' : '✓ Transferida');
@@ -154,6 +157,7 @@ function Transferir({ h, onListo }: { h: Herramienta; onListo: (m: string) => vo
             ))}
         </Select>
       </Campo>
+      <CampoResponsable valor={quien} onChange={setQuien} />
       <Campo etiqueta="Nuevo responsable a cargo">
         <Input value={resp} onChange={(e) => setResp(e.target.value)} placeholder={h.responsable_cargo || 'Nombre'} />
       </Campo>
@@ -171,6 +175,7 @@ function Transferir({ h, onListo }: { h: Herramienta; onListo: (m: string) => vo
 
 function Baja({ h, onListo }: { h: Herramienta; onListo: (m: string) => void }) {
   const nav = useNavigate();
+  const [quien, setQuien] = useResponsable();
   const [movId] = useState(nuevoId);
   const [notas, setNotas] = useState('');
   const [foto, setFoto] = useState<string | null>(null);
@@ -180,11 +185,12 @@ function Baja({ h, onListo }: { h: Herramienta; onListo: (m: string) => void }) 
 
   const enviar = async () => {
     if (notas.trim().length < 3) return setError('Contá brevemente qué pasó');
+    if (quien.trim().length < 2) return setError('Indicá quién es el responsable');
     if (!window.confirm(`¿Dar de baja definitivamente ${h.item_nombre} ${h.codigo ?? ''}?`)) return;
     setEnviando(true);
     setError('');
     try {
-      const r = await enviarMovimiento(`/herramientas/${h.id}/baja`, { mov_id: movId, notas, foto_key: foto }, `Baja ${h.item_nombre} ${h.codigo ?? ''}`);
+      const r = await enviarMovimiento(`/herramientas/${h.id}/baja`, { mov_id: movId, responsable_nombre: quien, notas, foto_key: foto }, `Baja ${h.item_nombre} ${h.codigo ?? ''}`);
       onListo(r.encolado ? 'Sin señal: la baja se enviará al volver la conexión.' : '✓ Dada de baja');
       if (!r.encolado) nav(`/obras/${h.obra_actual_id}?tab=herramientas`);
     } catch (e) {
@@ -196,6 +202,7 @@ function Baja({ h, onListo }: { h: Herramienta; onListo: (m: string) => void }) 
 
   return (
     <div className="space-y-3 rounded-xl border-2 border-red-700 bg-white p-4">
+      <CampoResponsable valor={quien} onChange={setQuien} />
       <Campo etiqueta="¿Qué pasó?">
         <Textarea value={notas} onChange={(e) => setNotas(e.target.value)} maxLength={500} placeholder="Se rompió el motor / robada del obrador…" />
       </Campo>

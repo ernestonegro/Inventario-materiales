@@ -14,7 +14,7 @@ const zMovimiento = z.object({
   obra_origen_id: z.string().min(1).nullish(),
   obra_destino_id: z.string().min(1).nullish(),
   cantidad: zCantidad,
-  responsable_nombre: zTexto(80).optional(),
+  responsable_nombre: zTexto(80).min(2, 'indicá quién es el responsable'),
   foto_remito_key: zFotoKey,
   notas: zTexto(500).default(''),
 });
@@ -96,7 +96,7 @@ export const movimientos = new Hono<AppEnv>()
         obra_origen_id: origen,
         obra_destino_id: destino,
         cantidad,
-        responsable_nombre: b.responsable_nombre || usuario.nombre,
+        responsable_nombre: b.responsable_nombre,
         foto_remito_key: foto,
         notas: b.notas,
         usuario_id: usuario.id,

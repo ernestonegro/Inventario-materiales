@@ -11,7 +11,6 @@
     "typecheck": "tsc -b",
     "db:init:local": "wrangler d1 execute inventario-db --local --persist-to .wrangler/state --file=schema.sql",
     "db:init:remote": "wrangler d1 execute inventario-db --remote --file=schema.sql",
-    "usuario": "node scripts/crear-usuario.mjs",
     "deploy": "npm run build && wrangler pages deploy"
   },
   "dependencies": {

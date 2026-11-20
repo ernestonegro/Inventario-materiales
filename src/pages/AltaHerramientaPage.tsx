@@ -3,10 +3,11 @@ import { useNavigate, useParams } from 'react-router';
 import { useQueryClient } from '@tanstack/react-query';
 import { api } from '../lib/api';
 import { nuevoId } from '../lib/format';
+import { useResponsable } from '../lib/responsable';
 import { useCatalogo, useObra } from '../lib/queries';
 import { CantidadInput } from '../components/CantidadInput';
 import { FotoCaptura } from '../components/FotoCaptura';
-import { Aviso, Boton, Campo, Encabezado, Input, Pagina, Select, Textarea } from '../components/ui';
+import { Aviso, Boton, Campo, CampoResponsable, Encabezado, Input, Pagina, Select, Textarea } from '../components/ui';
 
 export function AltaHerramientaPage() {
   const { id: obraId = '' } = useParams();
@@ -15,6 +16,7 @@ export function AltaHerramientaPage() {
   const obra = useObra(obraId);
   const cat = useCatalogo('activo_fijo');
   const [movId] = useState(nuevoId);
+  const [quien, setQuien] = useResponsable();
   const [itemId, setItemId] = useState('');
   const [cantidad, setCantidad] = useState('1');
   const [codigos, setCodigos] = useState('');
@@ -37,7 +39,7 @@ export function AltaHerramientaPage() {
     try {
       await api('/herramientas', {
         method: 'POST',
-        json: { mov_id: movId, item_id: itemId, obra_id: obraId, cantidad: n, codigos: lista.length ? lista : undefined, responsable_cargo: resp, foto_key: foto, notas },
+        json: { mov_id: movId, responsable_nombre: quien, item_id: itemId, obra_id: obraId, cantidad: n, codigos: lista.length ? lista : undefined, responsable_cargo: resp, foto_key: foto, notas },
       });
       void qc.invalidateQueries();
       nav(`/obras/${obraId}?tab=herramientas`, { replace: true });
@@ -53,7 +55,7 @@ export function AltaHerramientaPage() {
       <Encabezado titulo="Alta de herramienta" subtitulo={obra.data?.nombre} volver={`/obras/${obraId}?tab=herramientas`} />
       <Pagina>
         <form onSubmit={enviar} className="space-y-5">
-          <Campo etiqueta="Herramienta / equipo" ayuda="Si no figura, pedile al administrador que la agregue al catálogo.">
+          <Campo etiqueta="Herramienta / equipo" ayuda="Si no figura, agregala primero en Catálogo (pantalla de Obras).">
             <Select value={itemId} onChange={(e) => setItemId(e.target.value)} required>
               <option value="">— Elegir —</option>
               {cat.data?.map((c) => (
@@ -70,7 +72,8 @@ export function AltaHerramientaPage() {
           <Campo etiqueta="Códigos / etiquetas (opcional)" ayuda="Uno por unidad, separados por coma. Ej: AMOL-04, AMOL-05">
             <Input value={codigos} onChange={(e) => setCodigos(e.target.value)} autoCapitalize="characters" />
           </Campo>
-          <Campo etiqueta="Responsable a cargo">
+          <CampoResponsable valor={quien} onChange={setQuien} />
+          <Campo etiqueta="Responsable a cargo de la herramienta">
             <Input value={resp} onChange={(e) => setResp(e.target.value)} maxLength={80} />
           </Campo>
           <FotoCaptura etiqueta="Foto de factura / remito" onChange={setFoto} onSubiendo={setSubiendo} />

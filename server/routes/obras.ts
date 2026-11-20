@@ -3,7 +3,6 @@ import { z } from 'zod';
 import type { AppEnv } from '../env';
 import { ESTADOS_OBRA, type Obra, type StockItem } from '../../shared/types';
 import { notFound } from '../lib/errors';
-import { soloAdmin } from '../middleware';
 import { validar, zTexto } from '../lib/validar';
 
 const zObra = z.object({
@@ -29,7 +28,7 @@ export const obras = new Hono<AppEnv>()
     if (!obra) throw notFound('Obra');
     return c.json(obra);
   })
-  .post('/', soloAdmin, validar('json', zObra), async (c) => {
+  .post('/', validar('json', zObra), async (c) => {
     const b = c.req.valid('json');
     const obra = await c.env.DB
       .prepare('INSERT INTO obras (id, nombre, ubicacion, estado) VALUES (?, ?, ?, ?) RETURNING *')
@@ -37,7 +36,7 @@ export const obras = new Hono<AppEnv>()
       .first<Obra>();
     return c.json(obra, 201);
   })
-  .patch('/:id', soloAdmin, validar('json', zObra.partial()), async (c) => {
+  .patch('/:id', validar('json', zObra.partial()), async (c) => {
     const b = c.req.valid('json');
     const obra = await c.env.DB
       .prepare(
@@ -68,7 +67,6 @@ export const obras = new Hono<AppEnv>()
   // Presupuesto de un ítem para la obra (no toca cantidad_actual).
   .put(
     '/:id/inventario/:itemId',
-    soloAdmin,
     validar('json', z.object({ cantidad_presupuestada: z.number().min(0).max(1_000_000) })),
     async (c) => {
       const { id, itemId } = c.req.param();

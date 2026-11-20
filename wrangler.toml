@@ -8,21 +8,14 @@ compatibility_flags = ["nodejs_compat"]
 pages_build_output_dir = "./dist"
 
 # -----------------------------------------------------------------------------
-# Variables NO secretas (los secretos van con `wrangler pages secret put`)
-#   Secretos requeridos en producción:
-#     SESSION_SECRET  -> clave HMAC para firmar la cookie de sesión (>= 32 chars)
-#     PIN_PEPPER      -> clave HMAC para hashear los PIN de encargados
-#   En local se definen en .dev.vars (ver .dev.vars.example)
+# Variables. La app NO tiene login propio.
+# Protección recomendada: Cloudflare Access (Zero Trust). Si la configurás,
+# completá estos dos valores y el Worker validará el JWT de Access en cada
+# request. Vacíos = la app queda abierta a cualquiera con la URL.
 # -----------------------------------------------------------------------------
 [vars]
-# "pin"    -> login con PIN de encargado (cookie de sesión firmada)
-# "access" -> confía en Cloudflare Access (Zero Trust) y valida el JWT
-#             Cf-Access-Jwt-Assertion contra ACCESS_TEAM_DOMAIN / ACCESS_AUD
-AUTH_MODE = "pin"
 ACCESS_TEAM_DOMAIN = ""          # ej. "evolutivanorte.cloudflareaccess.com"
 ACCESS_AUD = ""                  # Application Audience (AUD) tag de la app en Access
-ACCESS_ADMINS = ""               # emails con rol admin en modo access, separados por coma
-SESSION_TTL_HORAS = "336"        # 14 días: el encargado no reteclea el PIN cada día
 MAX_FOTO_MB = "6"
 
 # -----------------------------------------------------------------------------

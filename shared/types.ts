@@ -5,14 +5,12 @@ export const TIPOS_ITEM = ['consumible', 'activo_fijo'] as const;
 export const UNIDADES = ['bolsas', 'm3', 'unidades', 'kg', 'metros'] as const;
 export const TIPOS_MOVIMIENTO = ['ingreso_compra', 'consumo_obra', 'transferencia', 'baja_rotura_robo'] as const;
 export const ESTADOS_HERRAMIENTA = ['operativa', 'en_reparacion', 'extraviada', 'baja'] as const;
-export const ROLES = ['admin', 'encargado'] as const;
 
 export type EstadoObra = (typeof ESTADOS_OBRA)[number];
 export type TipoItem = (typeof TIPOS_ITEM)[number];
 export type Unidad = (typeof UNIDADES)[number];
 export type TipoMovimiento = (typeof TIPOS_MOVIMIENTO)[number];
 export type EstadoHerramienta = (typeof ESTADOS_HERRAMIENTA)[number];
-export type Rol = (typeof ROLES)[number];
 
 export interface Obra {
   id: string;
@@ -87,10 +85,10 @@ export interface Alerta {
   stock_minimo_alerta: number;
 }
 
+/** Identidad de quien opera (email de Cloudflare Access, o genérica si no hay Access). */
 export interface Usuario {
   id: string;
   nombre: string;
-  rol: Rol;
 }
 
 export interface ApiError {

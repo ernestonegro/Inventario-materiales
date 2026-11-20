@@ -1,29 +1,23 @@
 import { createMiddleware } from 'hono/factory';
-import { getCookie } from 'hono/cookie';
 import type { AppEnv } from './env';
 import { HttpError } from './lib/errors';
-import { SESSION_COOKIE, leerAccess, leerSesion } from './lib/auth';
+import { accessActivo, leerAccess } from './lib/auth';
 
-const PUBLICAS = new Set(['/api/auth/login', '/api/health']);
+const ANONIMO = { id: 'app', nombre: 'Sin identificar' };
 
-/** Exige identidad: JWT de Cloudflare Access (modo "access") o cookie de sesión por PIN. */
-export const autenticar = createMiddleware<AppEnv>(async (c, next) => {
-  if (PUBLICAS.has(c.req.path)) return next();
-
-  const usuario =
-    c.env.AUTH_MODE === 'access'
-      ? await leerAccess(c.env, c.req.raw)
-      : await (async () => {
-          const token = getCookie(c, SESSION_COOKIE);
-          return token ? leerSesion(c.env, token) : null;
-        })();
-
-  if (!usuario) throw new HttpError(401, 'Sesión vencida o inválida. Ingresá tu PIN.', 'no_autenticado');
-  c.set('usuario', usuario);
-  await next();
-});
-
-export const soloAdmin = createMiddleware<AppEnv>(async (c, next) => {
-  if (c.get('usuario').rol !== 'admin') throw new HttpError(403, 'Solo un administrador puede hacer esto', 'prohibido');
+/**
+ * La app no tiene login propio.
+ * - Si Cloudflare Access está configurado (ACCESS_TEAM_DOMAIN + ACCESS_AUD), se
+ *   exige y valida su JWT: así nadie puede saltear Access pegándole directo al origen.
+ * - Si no, la API queda abierta a quien tenga la URL.
+ */
+export const identificar = createMiddleware<AppEnv>(async (c, next) => {
+  if (accessActivo(c.env) && c.req.path !== '/api/health') {
+    const u = await leerAccess(c.env, c.req.raw);
+    if (!u) throw new HttpError(401, 'Acceso no autorizado', 'no_autenticado');
+    c.set('usuario', u);
+  } else {
+    c.set('usuario', ANONIMO);
+  }
   await next();
 });

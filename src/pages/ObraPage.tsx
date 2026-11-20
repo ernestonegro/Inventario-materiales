@@ -2,7 +2,6 @@ import { useMemo, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router';
 import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ESTADOS_OBRA, ETIQUETA_ESTADO_HERRAMIENTA, ETIQUETA_MOVIMIENTO, type EstadoObra, type Obra, type StockItem } from '../../shared/types';
-import { useAuth } from '../hooks/useAuth';
 import { api } from '../lib/api';
 import { fmtCantidad, fmtFecha } from '../lib/format';
 import { fetchMovimientos, qk, useHerramientas, useObra, useStock } from '../lib/queries';
@@ -16,7 +15,6 @@ export function ObraPage() {
   const [sp, setSp] = useSearchParams();
   const tab = (sp.get('tab') as Tab) || 'stock';
   const obra = useObra(id);
-  const { usuario } = useAuth();
   const cerrada = obra.data?.estado === 'finalizada';
 
   return (
@@ -59,17 +57,17 @@ export function ObraPage() {
           ))}
         </nav>
 
-        {tab === 'stock' && <TabStock obraId={id} admin={usuario?.rol === 'admin'} />}
+        {tab === 'stock' && <TabStock obraId={id} />}
         {tab === 'herramientas' && <TabHerramientas obraId={id} cerrada={cerrada} />}
         {tab === 'historial' && <TabHistorial obraId={id} />}
 
-        {usuario?.rol === 'admin' && obra.data && <EstadoObraAdmin obra={obra.data} />}
+        {obra.data && <EstadoObra obra={obra.data} />}
       </Pagina>
     </>
   );
 }
 
-function TabStock({ obraId, admin }: { obraId: string; admin: boolean }) {
+function TabStock({ obraId }: { obraId: string }) {
   const stock = useStock(obraId);
   const qc = useQueryClient();
   const [q, setQ] = useState('');
@@ -95,14 +93,10 @@ function TabStock({ obraId, admin }: { obraId: string; admin: boolean }) {
           <FilaStock
             key={s.id}
             s={s}
-            onPresupuesto={
-              admin
-                ? () => {
-                    const v = window.prompt(`Cantidad presupuestada de ${s.nombre} (${s.unidad_medida})`, String(s.cantidad_presupuestada));
-                    if (v !== null && !Number.isNaN(Number(v.replace(',', '.')))) presupuesto.mutate({ item_id: s.item_id, cantidad: Number(v.replace(',', '.')) });
-                  }
-                : undefined
-            }
+            onPresupuesto={() => {
+              const v = window.prompt(`Cantidad presupuestada de ${s.nombre} (${s.unidad_medida})`, String(s.cantidad_presupuestada));
+              if (v !== null && !Number.isNaN(Number(v.replace(',', '.')))) presupuesto.mutate({ item_id: s.item_id, cantidad: Number(v.replace(',', '.')) });
+            }}
           />
         ))}
       </ul>
@@ -223,7 +217,7 @@ function TabHistorial({ obraId }: { obraId: string }) {
   );
 }
 
-function EstadoObraAdmin({ obra }: { obra: Obra }) {
+function EstadoObra({ obra }: { obra: Obra }) {
   const qc = useQueryClient();
   const m = useMutation({
     mutationFn: (estado: EstadoObra) => api<Obra>(`/obras/${obra.id}`, { method: 'PATCH', json: { estado } }),
@@ -232,7 +226,7 @@ function EstadoObraAdmin({ obra }: { obra: Obra }) {
   return (
     <section className="space-y-2 border-t-2 border-neutral-300 pt-4">
       <label className="block text-base font-bold" htmlFor="estado-obra">
-        Estado de la obra (admin)
+        Estado de la obra
       </label>
       <Select id="estado-obra" value={obra.estado} onChange={(e) => m.mutate(e.target.value as EstadoObra)} disabled={m.isPending}>
         {ESTADOS_OBRA.map((e) => (

@@ -55,8 +55,11 @@ async function previo(db: D1Database, movId: string, herrId?: string) {
   return { movimiento, duplicado: true, ...(herrId ? { herramienta: await leer(db, herrId) } : {}) };
 }
 
+const zResponsable = zTexto(80).min(2, 'indicá quién es el responsable');
+
 const zAccion = z.object({
-  mov_id: z.uuid(), // id del movimiento, generado en el cliente (idempotencia)
+  mov_id: z.uuid(),
+  responsable_nombre: zResponsable, // id del movimiento, generado en el cliente (idempotencia)
   notas: zTexto(500).default(''),
   foto_key: zFotoKey,
 });
@@ -90,6 +93,7 @@ export const herramientas = new Hono<AppEnv>()
       'json',
       z.object({
         mov_id: z.uuid(),
+        responsable_nombre: zResponsable,
         item_id: z.string().min(1),
         obra_id: z.string().min(1),
         cantidad: z.number().int().min(1).max(50),
@@ -116,7 +120,7 @@ export const herramientas = new Hono<AppEnv>()
         insertarMovimiento(db, {
           id: b.mov_id, item_id: b.item_id, tipo_movimiento: 'ingreso_compra',
           obra_origen_id: null, obra_destino_id: b.obra_id, cantidad: b.cantidad,
-          responsable_nombre: u.nombre, foto_remito_key: foto, notas: b.notas, usuario_id: u.id,
+          responsable_nombre: b.responsable_nombre, foto_remito_key: foto, notas: b.notas, usuario_id: u.id,
         }),
         ...Array.from({ length: b.cantidad }, (_, i) =>
           db
@@ -159,7 +163,7 @@ export const herramientas = new Hono<AppEnv>()
                FROM asignacion_herramientas a
               WHERE a.id = ?7 AND a.estado <> 'baja' AND a.obra_actual_id <> ?2`,
           )
-          .bind(b.mov_id, b.obra_destino_id, u.nombre, foto, b.notas, u.id, id),
+          .bind(b.mov_id, b.obra_destino_id, b.responsable_nombre, foto, b.notas, u.id, id),
         debitarSegunMov(db, b.mov_id),
         acreditarSegunMov(db, b.mov_id),
         db
@@ -196,7 +200,7 @@ export const herramientas = new Hono<AppEnv>()
            SELECT ?1, a.item_id, 'baja_rotura_robo', a.obra_actual_id, NULL, 1, ?2, ?3, ?4, a.id, ?5
              FROM asignacion_herramientas a WHERE a.id = ?6 AND a.estado <> 'baja'`,
         )
-        .bind(b.mov_id, u.nombre, foto, b.notas, u.id, id),
+        .bind(b.mov_id, b.responsable_nombre, foto, b.notas, u.id, id),
       debitarSegunMov(db, b.mov_id),
       db
         .prepare(

@@ -2,7 +2,6 @@ import { useState, type FormEvent } from 'react';
 import { Link } from 'react-router';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { Obra } from '../../shared/types';
-import { useAuth } from '../hooks/useAuth';
 import { api } from '../lib/api';
 import { qk, useAlertas, useObras } from '../lib/queries';
 import { Aviso, Boton, BotonLink, Campo, Cargando, Chip, Encabezado, Input, Pagina } from '../components/ui';
@@ -10,23 +9,13 @@ import { Aviso, Boton, BotonLink, Campo, Cargando, Chip, Encabezado, Input, Pagi
 const COLOR_ESTADO = { activa: 'verde', pausada: 'ambar', finalizada: 'neutro' } as const;
 
 export function ObrasPage() {
-  const { usuario, logout } = useAuth();
   const obras = useObras();
   const alertas = useAlertas();
   const [nueva, setNueva] = useState(false);
-  const admin = usuario?.rol === 'admin';
 
   return (
     <>
-      <Encabezado
-        titulo="Obras"
-        subtitulo={`${usuario?.nombre} · ${usuario?.rol}`}
-        accion={
-          <button onClick={logout} className="min-h-12 rounded-lg px-3 font-bold active:bg-neutral-800">
-            Salir
-          </button>
-        }
-      />
+      <Encabezado titulo="Obras" subtitulo="Evolutiva Norte · Inventario" />
       <Pagina>
         {(alertas.data?.length ?? 0) > 0 && (
           <Link to="/alertas" className="block rounded-xl border-2 border-red-700 bg-red-50 p-4 text-lg font-extrabold text-red-900">
@@ -54,14 +43,12 @@ export function ObrasPage() {
         </ul>
         {obras.data?.length === 0 && <Aviso tipo="info">Todavía no hay obras cargadas.</Aviso>}
 
-        {admin && (
-          <div className="space-y-3 border-t-2 border-neutral-300 pt-4">
+        <div className="space-y-3 border-t-2 border-neutral-300 pt-4">
             {nueva ? <NuevaObra onListo={() => setNueva(false)} /> : <Boton variante="neutro" onClick={() => setNueva(true)}>+ Nueva obra</Boton>}
             <BotonLink to="/catalogo" variante="neutro">
               Catálogo de materiales y herramientas
             </BotonLink>
-          </div>
-        )}
+        </div>
       </Pagina>
     </>
   );

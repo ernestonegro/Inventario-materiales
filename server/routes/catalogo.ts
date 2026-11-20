@@ -3,7 +3,6 @@ import { z } from 'zod';
 import type { AppEnv } from '../env';
 import { TIPOS_ITEM, UNIDADES, type Alerta, type CatalogoItem } from '../../shared/types';
 import { mapD1Error, notFound } from '../lib/errors';
-import { soloAdmin } from '../middleware';
 import { validar, zTexto } from '../lib/validar';
 
 const zItem = z.object({
@@ -27,7 +26,7 @@ export const catalogo = new Hono<AppEnv>()
       .all<CatalogoItem>();
     return c.json(results);
   })
-  .post('/', soloAdmin, validar('json', zItem), async (c) => {
+  .post('/', validar('json', zItem), async (c) => {
     const b = c.req.valid('json');
     try {
       const item = await c.env.DB
@@ -43,7 +42,7 @@ export const catalogo = new Hono<AppEnv>()
     }
   })
   // El tipo no se puede cambiar: rompería la coherencia con herramientas ya asignadas.
-  .patch('/:id', soloAdmin, validar('json', zItem.omit({ tipo: true }).partial()), async (c) => {
+  .patch('/:id', validar('json', zItem.omit({ tipo: true }).partial()), async (c) => {
     const b = c.req.valid('json');
     try {
       const item = await c.env.DB

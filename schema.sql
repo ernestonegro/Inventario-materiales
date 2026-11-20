@@ -4,7 +4,7 @@
 --
 -- Notas de diseño (D1 = SQLite):
 --  * Sin ENUM nativo -> CHECK (col IN (...)).
---  * Sin RLS -> la autorización vive en el Worker (middleware).
+--  * Sin RLS: el acceso se controla en el perímetro (Cloudflare Access, opcional).
 --  * D1 aplica foreign keys por defecto.
 --  * Fechas en ISO-8601 UTC (texto ordenable lexicográficamente).
 --  * CHECK (cantidad_actual >= 0) es la red de seguridad de las transacciones:
@@ -80,7 +80,7 @@ CREATE TABLE IF NOT EXISTS movimientos_inventario (
   foto_remito_key    TEXT,
   notas              TEXT NOT NULL DEFAULT '',
   herramienta_id     TEXT REFERENCES asignacion_herramientas (id),
-  usuario_id         TEXT,                    -- quién lo registró (sesión)
+  usuario_id         TEXT,                    -- email de Cloudflare Access si está activo
   fecha              DATETIME NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
   -- Coherencia origen/destino según el tipo
   CHECK (
@@ -96,21 +96,3 @@ CREATE INDEX IF NOT EXISTS idx_mov_destino_fecha ON movimientos_inventario (obra
 CREATE INDEX IF NOT EXISTS idx_mov_item_fecha    ON movimientos_inventario (item_id, fecha DESC);
 CREATE INDEX IF NOT EXISTS idx_mov_fecha         ON movimientos_inventario (fecha DESC);
 CREATE INDEX IF NOT EXISTS idx_mov_herramienta   ON movimientos_inventario (herramienta_id) WHERE herramienta_id IS NOT NULL;
-
--- ---------------------------------------------------------------- usuarios (encargados) y login por PIN
--- pin_hash = HMAC-SHA256(PIN, PIN_PEPPER) en hex -> permite login solo con PIN (PIN único por persona).
-CREATE TABLE IF NOT EXISTS usuarios (
-  id         TEXT PRIMARY KEY,
-  nombre     TEXT NOT NULL,
-  rol        TEXT NOT NULL DEFAULT 'encargado' CHECK (rol IN ('admin', 'encargado')),
-  pin_hash   TEXT NOT NULL UNIQUE,
-  activo     INTEGER NOT NULL DEFAULT 1 CHECK (activo IN (0, 1)),
-  creado_en  DATETIME NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
-);
-
--- Anti fuerza bruta del PIN (complementar con una regla de Rate Limiting en el WAF).
-CREATE TABLE IF NOT EXISTS login_intentos (
-  ip     TEXT NOT NULL,
-  fecha  DATETIME NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
-);
-CREATE INDEX IF NOT EXISTS idx_login_intentos_ip ON login_intentos (ip, fecha);

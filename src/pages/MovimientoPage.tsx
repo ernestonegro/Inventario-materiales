@@ -2,13 +2,13 @@ import { useMemo, useState, type FormEvent } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { useQueryClient } from '@tanstack/react-query';
 import { ETIQUETA_MOVIMIENTO, TIPOS_MOVIMIENTO, type TipoMovimiento } from '../../shared/types';
-import { useAuth } from '../hooks/useAuth';
 import { ApiErr, enviarMovimiento } from '../lib/api';
 import { fmtCantidad, nuevoId } from '../lib/format';
+import { useResponsable } from '../lib/responsable';
 import { useCatalogo, useObra, useObras, useStock } from '../lib/queries';
 import { CantidadInput, parseCantidad } from '../components/CantidadInput';
 import { FotoCaptura } from '../components/FotoCaptura';
-import { Aviso, Boton, Campo, Encabezado, Input, Pagina, Select, Textarea } from '../components/ui';
+import { Aviso, Boton, Campo, CampoResponsable, Encabezado, Input, Pagina, Select, Textarea } from '../components/ui';
 
 const VARIANTE = { ingreso_compra: 'ingreso', consumo_obra: 'consumo', transferencia: 'transferencia', baja_rotura_robo: 'baja' } as const;
 
@@ -17,7 +17,6 @@ export function MovimientoPage() {
   const tipo = (TIPOS_MOVIMIENTO as readonly string[]).includes(tipoParam ?? '') ? (tipoParam as TipoMovimiento) : 'consumo_obra';
   const nav = useNavigate();
   const qc = useQueryClient();
-  const { usuario } = useAuth();
   const obra = useObra(obraId);
   const obras = useObras();
   const stock = useStock(obraId);
@@ -29,7 +28,7 @@ export function MovimientoPage() {
   const [filtro, setFiltro] = useState('');
   const [cantidad, setCantidad] = useState('');
   const [destino, setDestino] = useState('');
-  const [responsable, setResponsable] = useState(usuario?.nombre ?? '');
+  const [responsable, setResponsable] = useResponsable();
   const [notas, setNotas] = useState('');
   const [foto, setFoto] = useState<string | null>(null);
   const [subiendo, setSubiendo] = useState(false);
@@ -59,6 +58,7 @@ export function MovimientoPage() {
     if (!sel) return setError('Elegí un material');
     if (!(n > 0)) return setError('Ingresá una cantidad mayor a 0');
     if (sel.disp !== undefined && n > sel.disp) return setError(`Solo hay ${fmtCantidad(sel.disp)} ${sel.unidad}`);
+    if (responsable.trim().length < 2) return setError('Indicá quién es el responsable');
     if (tipo === 'transferencia' && !destino) return setError('Elegí la obra de destino');
     if (esIngreso && !foto && !window.confirm('¿Registrar el ingreso SIN foto del remito?')) return;
 
@@ -175,9 +175,7 @@ export function MovimientoPage() {
                 onSubiendo={setSubiendo}
               />
 
-              <Campo etiqueta="Responsable">
-                <Input value={responsable} onChange={(e) => setResponsable(e.target.value)} maxLength={80} />
-              </Campo>
+              <CampoResponsable valor={responsable} onChange={setResponsable} />
               <Campo etiqueta="Notas">
                 <Textarea
                   value={notas}

@@ -3,8 +3,7 @@ import { csrf } from 'hono/csrf';
 import { secureHeaders } from 'hono/secure-headers';
 import type { AppEnv } from './env';
 import { HttpError } from './lib/errors';
-import { autenticar } from './middleware';
-import { auth } from './routes/auth';
+import { identificar } from './middleware';
 import { obras } from './routes/obras';
 import { alertas, catalogo } from './routes/catalogo';
 import { movimientos } from './routes/movimientos';
@@ -19,10 +18,9 @@ app.use(async (c, next) => {
   await next();
   c.header('Cache-Control', c.res.headers.get('Cache-Control') ?? 'no-store');
 });
-app.use(autenticar);
+app.use(identificar);
 
 app.get('/health', (c) => c.json({ ok: true }));
-app.route('/auth', auth);
 app.route('/obras', obras);
 app.route('/catalogo', catalogo);
 app.route('/alertas', alertas);

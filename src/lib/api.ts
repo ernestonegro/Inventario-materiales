@@ -25,7 +25,6 @@ export async function api<T>(path: string, init: RequestInit & { json?: unknown 
   }
   const data = res.headers.get('content-type')?.includes('json') ? await res.json() : null;
   if (!res.ok) {
-    if (res.status === 401) window.dispatchEvent(new Event('sesion-vencida'));
     const err = data as ApiError | null;
     throw new ApiErr(res.status, err?.error ?? `Error ${res.status}`, err?.codigo);
   }
@@ -107,7 +106,6 @@ export async function sincronizar(): Promise<number> {
         ok++;
       } catch (e) {
         if (esErrorDeRed(e)) break; // sigue sin señal: reintentar más tarde
-        if (e instanceof ApiErr && e.status === 401) break; // re-login y reintentar
         guardar(K_ERR, [...fallidos(), { ...p, error: (e as Error).message }]);
       }
       guardar(K_OUT, pendientes().filter((x) => x.creado !== p.creado || x.path !== p.path));
