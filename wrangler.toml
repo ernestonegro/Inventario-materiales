@@ -1,11 +1,32 @@
 # =============================================================================
 # Evolutiva Norte · Control de Inventario por Obra
-# Cloudflare Pages (frontend estático en ./dist) + Pages Functions (/functions)
+# Cloudflare Worker (API Hono) + Static Assets (frontend React en ./dist)
+#
+# Deploy: `npx wrangler deploy` (es lo que ejecuta el build automático de
+# Cloudflare al conectar el repo). En el primer deploy, wrangler CREA solo la
+# base D1 y el bucket R2 si no existen; las tablas las crea el Worker en el
+# primer request (schema.sql es idempotente).
 # =============================================================================
 name = "evolutiva-inventario"
+main = "server/worker.ts"
 compatibility_date = "2026-11-01"
 compatibility_flags = ["nodejs_compat"]
-pages_build_output_dir = "./dist"
+
+# El build de Cloudflare no instala ni compila: lo hace este comando antes del deploy.
+[build]
+command = "npm ci && npm run build"
+
+[assets]
+directory = "./dist"
+binding = "ASSETS"
+not_found_handling = "single-page-application"   # rutas del SPA -> index.html
+run_worker_first = ["/api/*"]                     # solo /api/* ejecuta el Worker
+
+# schema.sql se importa como texto para auto-crear las tablas.
+[[rules]]
+type = "Text"
+globs = ["**/*.sql"]
+fallthrough = true
 
 # -----------------------------------------------------------------------------
 # Variables. La app NO tiene login propio.
@@ -18,28 +39,15 @@ ACCESS_TEAM_DOMAIN = ""          # ej. "evolutivanorte.cloudflareaccess.com"
 ACCESS_AUD = ""                  # Application Audience (AUD) tag de la app en Access
 MAX_FOTO_MB = "6"
 
-# -----------------------------------------------------------------------------
-# Cloudflare D1 (SQLite)
-#   Crear: npx wrangler d1 create inventario-db   -> pegar el database_id abajo
-#   Esquema: npm run db:init:remote
-# -----------------------------------------------------------------------------
+# Cloudflare D1 (SQLite). Sin database_id: wrangler la crea/vincula por nombre.
 [[d1_databases]]
 binding = "DB"
 database_name = "inventario-db"
-database_id = "00000000-0000-0000-0000-000000000000"  # <- reemplazar
 
-# -----------------------------------------------------------------------------
-# Cloudflare R2 (fotos de remitos y estado de herramientas). Bucket PRIVADO:
-# las imágenes solo se sirven a través de GET /api/remito/:key (autenticado).
-#   Crear: npx wrangler r2 bucket create evolutiva-remitos
-# -----------------------------------------------------------------------------
+# Cloudflare R2, bucket PRIVADO: las fotos solo se sirven vía GET /api/remito/:key.
 [[r2_buckets]]
 binding = "BUCKET"
 bucket_name = "evolutiva-remitos"
 
-# Entorno de preview (deploys de ramas). Opcional: apuntar a una DB/bucket aparte.
-# [env.preview]
-# [[env.preview.d1_databases]]
-# binding = "DB"
-# database_name = "inventario-db-preview"
-# database_id = "..."
+[observability]
+enabled = true

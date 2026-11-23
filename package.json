@@ -6,12 +6,10 @@
   "scripts": {
     "dev": "concurrently -k -n api,web -c yellow,cyan \"npm:dev:api\" \"npm:dev:web\"",
     "dev:web": "vite",
-    "dev:api": "mkdir -p dist && wrangler pages dev dist --port 8788 --persist-to .wrangler/state",
+    "dev:api": "mkdir -p dist && wrangler dev --port 8788 --persist-to .wrangler/state",
     "build": "tsc -b && vite build",
     "typecheck": "tsc -b",
-    "db:init:local": "wrangler d1 execute inventario-db --local --persist-to .wrangler/state --file=schema.sql",
-    "db:init:remote": "wrangler d1 execute inventario-db --remote --file=schema.sql",
-    "deploy": "npm run build && wrangler pages deploy"
+    "deploy": "wrangler deploy"
   },
   "dependencies": {
     "@hono/zod-validator": "^0.9.1",

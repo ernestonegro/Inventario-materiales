@@ -1,16 +1,16 @@
 # Inventario de Obra · Evolutiva Norte
 
 App web mobile-first para controlar materiales, consumibles y herramientas por obra.
-**100 % Cloudflare:** Pages (React + Vite + Tailwind) · Pages Functions con Hono · D1 · R2.
+**100 % Cloudflare:** Worker con Hono (API) + Static Assets (React + Vite + Tailwind) · D1 · R2.
 Sin login propio: se recomienda proteger la URL con Cloudflare Access (ver abajo).
 
 ## Estructura
 
 ```
-├── wrangler.toml              # Pages + bindings D1 (DB) y R2 (BUCKET)
-├── schema.sql                 # Esquema D1 (wrangler d1 execute)
-├── functions/api/[[route]].ts # Pages Function catch-all -> app Hono
+├── wrangler.toml              # Worker + assets + bindings D1 (DB) y R2 (BUCKET)
+├── schema.sql                 # Esquema D1 (el Worker lo aplica solo si faltan las tablas)
 ├── server/                    # Backend (corre en el edge)
+│   ├── worker.ts              # entrada del Worker (solo /api/*; el resto es estático)
 │   ├── app.ts                 # Hono: middlewares, rutas, manejo de errores
 │   ├── middleware.ts          # validación opcional del JWT de Cloudflare Access
 │   ├── lib/stock.ts           # sentencias de stock para DB.batch (acreditar/debitar)
@@ -59,26 +59,25 @@ Sin login propio: se recomienda proteger la URL con Cloudflare Access (ver abajo
 
 ```bash
 npm install
-npm run db:init:local
-npm run dev            # http://localhost:5173 (API vía proxy a :8788)
+npm run dev            # http://localhost:5173 (API vía proxy a wrangler dev en :8788)
 ```
 
 ## Deploy a Cloudflare
 
-```bash
-npx wrangler login
-npx wrangler d1 create inventario-db              # copiar database_id a wrangler.toml
-npx wrangler r2 bucket create evolutiva-remitos   # bucket privado (sin acceso público)
-npm run db:init:remote
-npx wrangler pages project create evolutiva-inventario --production-branch main
-npm run deploy
-```
+**Automático (recomendado):** en el dashboard, Workers & Pages → Create → Import a repository →
+este repo, rama `main`. El comando de deploy por defecto (`npx wrangler deploy`) alcanza:
+`wrangler.toml` ya compila el frontend (`[build]`), crea la base D1 y el bucket R2 si no existen,
+y el Worker crea las tablas en el primer request.
+
+**Manual:** `npx wrangler login && npm run deploy`.
+
+R2 tiene que estar activado una vez en la cuenta (dashboard → R2 → Activate).
 
 ## Seguridad: la app no tiene login
 
 Cualquiera con la URL puede ver y modificar el inventario. Para restringirlo sin tocar código:
 **Cloudflare Zero Trust → Access → Applications → Add → Self-hosted**, con dominio
-`evolutiva-inventario.pages.dev` y una política que permita solo los emails de la empresa.
+la URL del Worker (`evolutiva-inventario.<tu-subdominio>.workers.dev`) y una política que permita solo los emails de la empresa.
 Después completar `ACCESS_TEAM_DOMAIN` y `ACCESS_AUD` en `wrangler.toml` y volver a desplegar.
 Con eso el Worker también valida el JWT `Cf-Access-Jwt-Assertion`, así nadie puede saltear Access.
 

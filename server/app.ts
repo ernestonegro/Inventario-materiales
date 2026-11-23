@@ -4,6 +4,7 @@ import { secureHeaders } from 'hono/secure-headers';
 import type { AppEnv } from './env';
 import { HttpError } from './lib/errors';
 import { identificar } from './middleware';
+import { asegurarEsquema } from './lib/esquema';
 import { obras } from './routes/obras';
 import { alertas, catalogo } from './routes/catalogo';
 import { movimientos } from './routes/movimientos';
@@ -17,6 +18,10 @@ app.use(csrf()); // rechaza POST de formularios desde otro origen
 app.use(async (c, next) => {
   await next();
   c.header('Cache-Control', c.res.headers.get('Cache-Control') ?? 'no-store');
+});
+app.use(async (c, next) => {
+  await asegurarEsquema(c.env.DB);
+  await next();
 });
 app.use(identificar);
 
