@@ -1,0 +1,53 @@
+# =============================================================================
+# Evolutiva Norte · Control de Inventario por Obra
+# Cloudflare Worker (API Hono) + Static Assets (frontend React en ./dist)
+#
+# Deploy: `npx wrangler deploy` (es lo que ejecuta el build automático de
+# Cloudflare al conectar el repo). En el primer deploy, wrangler CREA solo la
+# base D1 y el bucket R2 si no existen; las tablas las crea el Worker en el
+# primer request (schema.sql es idempotente).
+# =============================================================================
+name = "evolutiva-inventario"
+main = "server/worker.ts"
+compatibility_date = "2026-11-01"
+compatibility_flags = ["nodejs_compat"]
+
+# El build de Cloudflare no instala ni compila: lo hace este comando antes del deploy.
+[build]
+command = "npm ci && npm run build"
+
+[assets]
+directory = "./dist"
+binding = "ASSETS"
+not_found_handling = "single-page-application"   # rutas del SPA -> index.html
+run_worker_first = ["/api/*"]                     # solo /api/* ejecuta el Worker
+
+# schema.sql se importa como texto para auto-crear las tablas.
+[[rules]]
+type = "Text"
+globs = ["**/*.sql"]
+fallthrough = true
+
+# -----------------------------------------------------------------------------
+# Variables. La app NO tiene login propio.
+# Protección recomendada: Cloudflare Access (Zero Trust). Si la configurás,
+# completá estos dos valores y el Worker validará el JWT de Access en cada
+# request. Vacíos = la app queda abierta a cualquiera con la URL.
+# -----------------------------------------------------------------------------
+[vars]
+ACCESS_TEAM_DOMAIN = ""          # ej. "evolutivanorte.cloudflareaccess.com"
+ACCESS_AUD = ""                  # Application Audience (AUD) tag de la app en Access
+MAX_FOTO_MB = "6"
+
+# Cloudflare D1 (SQLite). Sin database_id: wrangler la crea/vincula por nombre.
+[[d1_databases]]
+binding = "DB"
+database_name = "inventario-db"
+
+# Cloudflare R2, bucket PRIVADO: las fotos solo se sirven vía GET /api/remito/:key.
+[[r2_buckets]]
+binding = "BUCKET"
+bucket_name = "evolutiva-remitos"
+
+[observability]
+enabled = true
