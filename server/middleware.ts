@@ -12,6 +12,10 @@ const ANONIMO = { id: 'app', nombre: 'Sin identificar' };
  * - Si no, la API queda abierta a quien tenga la URL.
  */
 export const identificar = createMiddleware<AppEnv>(async (c, next) => {
+  c.set('origen', {
+    ip: c.req.header('CF-Connecting-IP') ?? '',
+    dispositivo: (c.req.header('X-Dispositivo') ?? '').slice(0, 64),
+  });
   if (accessActivo(c.env) && c.req.path !== '/api/health') {
     const u = await leerAccess(c.env, c.req.raw);
     if (!u) throw new HttpError(401, 'Acceso no autorizado', 'no_autenticado');

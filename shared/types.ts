@@ -1,91 +1,168 @@
-// Tipos de dominio compartidos entre el Worker (server/) y el frontend (src/).
+// Dominio compartido entre el Worker (server/) y el frontend (src/).
 
-export const ESTADOS_OBRA = ['activa', 'pausada', 'finalizada'] as const;
-export const TIPOS_ITEM = ['consumible', 'activo_fijo'] as const;
-export const UNIDADES = ['bolsas', 'm3', 'unidades', 'kg', 'metros'] as const;
-export const TIPOS_MOVIMIENTO = ['ingreso_compra', 'consumo_obra', 'transferencia', 'baja_rotura_robo'] as const;
-export const ESTADOS_HERRAMIENTA = ['operativa', 'en_reparacion', 'extraviada', 'baja'] as const;
+export const CATEGORIAS = [
+  'aridos', 'cemento_morteros', 'hierro_acero', 'mamposteria',
+  'inst_electricas', 'inst_sanitarias', 'terminaciones', 'herramientas_epp', 'otros',
+] as const;
+export type Categoria = (typeof CATEGORIAS)[number];
 
-export type EstadoObra = (typeof ESTADOS_OBRA)[number];
-export type TipoItem = (typeof TIPOS_ITEM)[number];
+export const ETIQUETA_CATEGORIA: Record<Categoria, string> = {
+  aridos: 'Áridos',
+  cemento_morteros: 'Cemento / morteros',
+  hierro_acero: 'Hierro / acero',
+  mamposteria: 'Mampostería',
+  inst_electricas: 'Inst. eléctricas',
+  inst_sanitarias: 'Inst. sanitarias',
+  terminaciones: 'Terminaciones',
+  herramientas_epp: 'Herramientas / EPP',
+  otros: 'Otros',
+};
+
+/** Prefijo para autogenerar códigos: CEM-001, HIE-014... */
+export const PREFIJO_CATEGORIA: Record<Categoria, string> = {
+  aridos: 'ARI', cemento_morteros: 'CEM', hierro_acero: 'HIE', mamposteria: 'MAM',
+  inst_electricas: 'ELE', inst_sanitarias: 'SAN', terminaciones: 'TER', herramientas_epp: 'HER', otros: 'OTR',
+};
+
+export const UNIDADES = ['bolsa', 'm3', 'barra', 'kg', 'unidad', 'rollo', 'metro', 'm2', 'litro'] as const;
 export type Unidad = (typeof UNIDADES)[number];
-export type TipoMovimiento = (typeof TIPOS_MOVIMIENTO)[number];
-export type EstadoHerramienta = (typeof ESTADOS_HERRAMIENTA)[number];
 
-export interface Obra {
-  id: string;
-  nombre: string;
-  ubicacion: string;
-  estado: EstadoObra;
-  creado_en: string;
+export const TIPOS_UBICACION = ['deposito', 'acopio', 'obra'] as const;
+export type TipoUbicacion = (typeof TIPOS_UBICACION)[number];
+export const ETIQUETA_TIPO_UBICACION: Record<TipoUbicacion, string> = { deposito: 'Depósito', acopio: 'Acopio', obra: 'Obra / frente' };
+export const ZONAS = ['Yerba Buena', 'Tafí Viejo', 'SMT Centro'] as const;
+
+export const TIPOS_MOV = ['ingreso', 'salida', 'transferencia', 'ajuste'] as const;
+export type TipoMov = (typeof TIPOS_MOV)[number];
+export const ETIQUETA_TIPO: Record<TipoMov, string> = {
+  ingreso: 'Ingreso / Compra / Acopio',
+  salida: 'Salida a obra / Consumo',
+  transferencia: 'Transferencia',
+  ajuste: 'Ajuste / Merma / Rotura',
+};
+export const ETIQUETA_TIPO_CORTA: Record<TipoMov, string> = { ingreso: 'Ingreso', salida: 'Salida', transferencia: 'Transferir', ajuste: 'Ajuste' };
+
+export const MOTIVOS = [
+  'compra', 'acopio', 'devolucion', 'inicial', 'consumo', 'traslado',
+  'conteo', 'merma', 'rotura', 'robo', 'otro', 'anulacion',
+] as const;
+export type Motivo = (typeof MOTIVOS)[number];
+export const ETIQUETA_MOTIVO: Record<Motivo, string> = {
+  compra: 'Compra', acopio: 'Acopio', devolucion: 'Devolución de obra', inicial: 'Stock inicial',
+  consumo: 'Consumo', traslado: 'Traslado', conteo: 'Conteo físico', merma: 'Merma',
+  rotura: 'Rotura', robo: 'Robo / extravío', otro: 'Otro', anulacion: 'Anulación',
+};
+/** Motivos que el usuario puede elegir por tipo (inicial/anulación los genera el sistema). */
+export const MOTIVOS_POR_TIPO: Record<TipoMov, readonly Motivo[]> = {
+  ingreso: ['compra', 'acopio', 'devolucion'],
+  salida: ['consumo'],
+  transferencia: ['traslado'],
+  ajuste: ['conteo', 'merma', 'rotura', 'robo', 'otro'],
+};
+
+export type EstadoStock = 'normal' | 'bajo' | 'sin_stock';
+export const ETIQUETA_ESTADO: Record<EstadoStock, string> = { normal: 'Normal', bajo: 'Bajo mínimo', sin_stock: 'Sin stock' };
+
+/** Sin stock: total <= 0. Bajo mínimo: hay stock pero <= mínimo configurado. */
+export function estadoStock(total: number, minimo: number): EstadoStock {
+  if (total <= 0) return 'sin_stock';
+  if (minimo > 0 && total <= minimo) return 'bajo';
+  return 'normal';
 }
 
-export interface CatalogoItem {
+export interface Ubicacion {
   id: string;
   nombre: string;
-  categoria: string;
-  tipo: TipoItem;
-  unidad_medida: Unidad;
-  stock_minimo_alerta: number;
+  tipo: TipoUbicacion;
+  zona: string;
+  activa: number;
 }
 
-/** Fila de inventario_obra unida con el catálogo. */
-export interface StockItem {
-  id: string;
-  obra_id: string;
-  item_id: string;
+export interface StockUbicacion {
+  ubicacion_id: string;
   nombre: string;
-  categoria: string;
-  tipo: TipoItem;
-  unidad_medida: Unidad;
-  stock_minimo_alerta: number;
-  cantidad_actual: number;
-  cantidad_presupuestada: number;
-  alerta: boolean;
+  cantidad: number;
+}
+
+export interface Item {
+  id: string;
+  codigo: string;
+  nombre: string;
+  categoria: Categoria;
+  unidad: Unidad;
+  stock_minimo: number;
+  precio_unitario: number | null;
+  ubicacion_principal_id: string | null;
+  ubicacion_principal: string | null;
+  notas: string;
+  activo: number;
+  ultimo_movimiento: string | null;
+  stock_total: number;
+  por_ubicacion: StockUbicacion[];
+  estado: EstadoStock;
 }
 
 export interface Movimiento {
   id: string;
   item_id: string;
+  codigo: string;
   item_nombre: string;
-  unidad_medida: Unidad;
-  tipo_movimiento: TipoMovimiento;
-  obra_origen_id: string | null;
-  obra_origen_nombre: string | null;
-  obra_destino_id: string | null;
-  obra_destino_nombre: string | null;
+  unidad: Unidad;
+  tipo: TipoMov;
+  motivo: Motivo;
+  origen_id: string | null;
+  origen_nombre: string | null;
+  destino_id: string | null;
+  destino_nombre: string | null;
+  obra_id: string | null;
+  obra_nombre: string | null;
+  frente: string;
   cantidad: number;
-  responsable_nombre: string;
-  foto_remito_key: string | null;
+  saldo_origen: number | null;
+  saldo_destino: number | null;
+  forzado: number;
+  precio_unitario: number | null;
+  responsable: string;
   notas: string;
-  herramienta_id: string | null;
+  foto_key: string | null;
+  anula_id: string | null;
+  anulado_por: string | null;
+  dispositivo: string;
   fecha: string;
 }
 
-export interface Herramienta {
-  id: string;
-  item_id: string;
-  item_nombre: string;
-  codigo: string | null;
-  obra_actual_id: string;
-  obra_nombre: string;
-  responsable_cargo: string;
-  estado: EstadoHerramienta;
-  foto_estado_key: string | null;
-  fecha_asignacion: string;
+export interface Resumen {
+  total_items: number;
+  bajo_minimo: number;
+  sin_stock: number;
+  negativos: number;
+  valor_estimado: number;
+  items_sin_precio: number;
+  movimientos_hoy: number;
+  ultimos: Movimiento[];
 }
 
-export interface Alerta {
-  obra_id: string;
-  obra_nombre: string;
-  item_id: string;
-  item_nombre: string;
-  unidad_medida: Unidad;
-  cantidad_actual: number;
-  stock_minimo_alerta: number;
+export interface ResultadoImport {
+  simulacion: boolean;
+  filas: number;
+  creados: number;
+  actualizados: number;
+  ajustes_stock: number;
+  ubicaciones_nuevas: string[];
+  errores: { fila: number; error: string }[];
 }
 
-/** Identidad de quien opera (email de Cloudflare Access, o genérica si no hay Access). */
+export interface DiferenciaAuditoria {
+  item_id: string;
+  codigo: string;
+  nombre: string;
+  ubicacion: string;
+  stock_tabla: number;
+  stock_libro: number;
+  diferencia: number;
+}
+
+/** Identidad: email de Cloudflare Access si está activo; si no, genérica. */
 export interface Usuario {
   id: string;
   nombre: string;
@@ -94,18 +171,5 @@ export interface Usuario {
 export interface ApiError {
   error: string;
   codigo?: string;
+  datos?: Record<string, unknown>;
 }
-
-export const ETIQUETA_MOVIMIENTO: Record<TipoMovimiento, string> = {
-  ingreso_compra: 'Ingreso (compra)',
-  consumo_obra: 'Consumo en obra',
-  transferencia: 'Transferencia',
-  baja_rotura_robo: 'Baja (rotura/robo)',
-};
-
-export const ETIQUETA_ESTADO_HERRAMIENTA: Record<EstadoHerramienta, string> = {
-  operativa: 'Operativa',
-  en_reparacion: 'En reparación',
-  extraviada: 'Extraviada',
-  baja: 'Dada de baja',
-};

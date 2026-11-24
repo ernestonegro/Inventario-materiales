@@ -1,8 +1,9 @@
 import type { ApiError } from '../../shared/types';
 import { comprimirImagen } from './image';
+import { dispositivoId } from './prefs';
 
 export class ApiErr extends Error {
-  constructor(public status: number, message: string, public codigo?: string) {
+  constructor(public status: number, message: string, public codigo?: string, public datos?: Record<string, unknown>) {
     super(message);
   }
 }
@@ -17,7 +18,7 @@ export async function api<T>(path: string, init: RequestInit & { json?: unknown 
     res = await fetch(`/api${path}`, {
       credentials: 'same-origin',
       ...rest,
-      headers: { ...(json !== undefined ? { 'Content-Type': 'application/json' } : {}), ...rest.headers },
+      headers: { 'X-Dispositivo': dispositivoId(), ...(json !== undefined ? { 'Content-Type': 'application/json' } : {}), ...rest.headers },
       body: json !== undefined ? JSON.stringify(json) : rest.body,
     });
   } catch {
@@ -26,7 +27,7 @@ export async function api<T>(path: string, init: RequestInit & { json?: unknown 
   const data = res.headers.get('content-type')?.includes('json') ? await res.json() : null;
   if (!res.ok) {
     const err = data as ApiError | null;
-    throw new ApiErr(res.status, err?.error ?? `Error ${res.status}`, err?.codigo);
+    throw new ApiErr(res.status, err?.error ?? `Error ${res.status}`, err?.codigo, err?.datos);
   }
   return data as T;
 }

@@ -32,7 +32,7 @@ export function BarraEstado() {
   if (online && pend.length === 0 && err.length === 0) return null;
 
   return (
-    <div className="fixed inset-x-0 bottom-0 z-40 space-y-px">
+    <div className="fixed inset-x-0 bottom-16 z-40 space-y-px md:bottom-0">
       {err.length > 0 && (
         <div className="bg-red-700 px-4 py-3 text-white">
           <p className="font-bold">{err.length} movimiento(s) rechazado(s) al sincronizar:</p>

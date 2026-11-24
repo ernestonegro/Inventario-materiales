@@ -12,6 +12,8 @@ export interface Bindings {
 
 export interface Variables {
   usuario: Usuario;
+  /** Rastro de auditoría sin login: IP y un id aleatorio fijo por dispositivo. */
+  origen: { ip: string; dispositivo: string };
 }
 
 export type AppEnv = { Bindings: Bindings; Variables: Variables };

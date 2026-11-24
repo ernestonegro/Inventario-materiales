@@ -4,6 +4,26 @@ App web mobile-first para controlar materiales, consumibles y herramientas por o
 **100 % Cloudflare:** Worker con Hono (API) + Static Assets (React + Vite + Tailwind) · D1 · R2.
 Sin login propio: se recomienda proteger la URL con Cloudflare Access (ver abajo).
 
+## Modelo
+
+- **Ubicaciones**: depósito central, acopios y obras/frentes (zona: Yerba Buena, Tafí Viejo, SMT Centro…).
+- **Ítems**: código, nombre, categoría (áridos, cemento/morteros, hierro/acero, mampostería, inst. eléctricas,
+  inst. sanitarias, terminaciones, herramientas/EPP), unidad (bolsa, m3, barra, kg, unidad, rollo, metro, m2, litro),
+  stock mínimo, precio unitario, ubicación principal y fecha del último movimiento.
+- **Stock por (ítem, ubicación)**, y el total es la suma de todas las ubicaciones.
+- **Movimientos** (bitácora append-only): Ingreso / Compra / Acopio · Salida a obra / Consumo · Transferencia ·
+  Ajuste / Merma / Rotura (incluye conteo físico). Los errores se corrigen con **anulación**; nada se borra.
+- **Stock negativo**: solo con confirmación explícita del usuario, y queda marcado en la bitácora.
+  Sin confirmación, la base rechaza la transacción entera (`CHECK`).
+
+## Persistencia
+
+D1 (SQLite) con transacciones `batch`. No se usa KV, porque es eventualmente consistente y no sirve para
+contadores de stock. El esquema se migra solo y con versión (`_migraciones`). La migración v2 copia los
+datos del modelo anterior y deja las tablas viejas intactas. Además, D1 guarda 30 días de historial
+recuperable (Time Travel):
+`npx wrangler d1 time-travel restore inventario-db --timestamp=<ISO>`.
+
 ## Estructura
 
 ```
@@ -15,45 +35,42 @@ Sin login propio: se recomienda proteger la URL con Cloudflare Access (ver abajo
 │   ├── middleware.ts          # validación opcional del JWT de Cloudflare Access
 │   ├── lib/stock.ts           # sentencias de stock para DB.batch (acreditar/debitar)
 │   ├── lib/movimientos.ts     # ejecución atómica + idempotencia
-│   └── routes/                # obras, catalogo, movimientos, herramientas, archivos (R2)
+│   ├── lib/migraciones.ts     # migraciones versionadas (incluye v1 -> v2)
+│   └── routes/                # items, ubicaciones, movimientos, resumen/auditoría, datos (CSV/JSON), archivos (R2)
 ├── shared/types.ts            # tipos de dominio compartidos front/back
 ├── src/                       # Frontend React
 │   ├── lib/api.ts             # cliente fetch + bandeja offline + subida de fotos
 │   ├── lib/image.ts           # compresión de fotos en el celular
 │   ├── components/            # botones grandes, cantidad ±, cámara, barra sin señal
-│   └── pages/                 # Obras, Obra (stock/herramientas/historial), Movimiento, Herramienta…
+│   └── pages/                 # Inicio (KPIs), Stock, Cargar, Bitácora, Datos, Ítem
 ```
 
 ## API
 
 | Método | Ruta | Descripción |
 |---|---|---|
-| GET | `/api/obras`, `/api/obras/:id` | Obras |
-| POST/PATCH | `/api/obras[/:id]` | Alta / cambio de estado |
-| GET | `/api/obras/:id/inventario` | Stock de la obra con alerta de mínimo |
-| PUT | `/api/obras/:id/inventario/:itemId` | Cantidad presupuestada |
-| GET/POST/PATCH | `/api/catalogo` | Catálogo de ítems |
-| GET | `/api/alertas` | Consumibles bajo el mínimo en obras activas |
-| GET/POST | `/api/movimientos` | Historial / ingreso, consumo, transferencia, baja de **consumibles** |
-| GET | `/api/herramientas?obra_id=` | Herramientas (unidades físicas) |
-| POST | `/api/herramientas` | Alta por compra de N unidades |
-| POST | `/api/herramientas/:id/transferir` | Transferir una unidad a otra obra |
-| POST | `/api/herramientas/:id/baja` | Baja por rotura/robo |
-| PATCH | `/api/herramientas/:id` | Estado (operativa / en reparación / extraviada), responsable, foto |
-| POST | `/api/upload-remito?tipo=remito\|herramienta` | Imagen cruda → R2 `remitos/YYYY-MM/uuid.jpg` → `{key}` |
-| GET | `/api/remito/:key` | Sirve la foto del bucket privado (sin exponer el bucket) |
+| GET/POST/PATCH | `/api/items[/:id]` | Ítems con stock total, por ubicación y estado |
+| GET/POST/PATCH | `/api/ubicaciones[/:id]` | Depósito, acopios y obras |
+| GET/POST | `/api/movimientos` | Bitácora (filtros: ítem, ubicación, tipo, fechas, texto) / alta atómica e idempotente |
+| POST | `/api/movimientos/:id/anular` | Movimiento inverso enlazado al original |
+| GET | `/api/resumen` | KPIs: ítems, bajo mínimo, sin stock, valor estimado, últimos movimientos |
+| GET | `/api/auditoria` | Compara el stock con el recalculado desde la bitácora |
+| GET | `/api/export/items.csv`, `/api/export/movimientos.csv`, `/api/export/backup.json` | Exportación / respaldo |
+| POST | `/api/import/items?simular=1` | Importa CSV/JSON (upsert por código; stock = conteo) |
+| POST/GET | `/api/upload-remito`, `/api/remito/:key` | Fotos en R2 (bucket privado) |
 
 ## Garantías de consistencia
 
 - **Atomicidad:** cada movimiento es un único `env.DB.batch([...])` (transacción SQLite): el registro en
-  `movimientos_inventario` + el débito en origen + el crédito en destino. O se aplican todos o ninguno.
-- **Nunca stock negativo:** `CHECK (cantidad_actual >= 0)` en `inventario_obra`. Si dos encargados consumen
-  a la vez, el batch que excede falla y D1 revierte todo, incluido el crédito en la obra destino.
-- **Idempotencia ante mala señal:** el id del movimiento lo genera el celular. Reenviar la misma operación
-  devuelve el movimiento original (`duplicado: true`) en vez de duplicar stock. Esto hace segura la
-  **bandeja offline**: sin señal, el movimiento queda en el teléfono y se reenvía solo al volver la conexión.
-- **Herramientas:** cada sentencia del batch se calcula a partir de la fila de movimiento insertada en ese
-  mismo batch. Si otro usuario movió la herramienta en paralelo, no se aplica nada (409).
+  `movimientos` + el débito en origen + el crédito en destino + la fecha del ítem. O se aplican todos o ninguno.
+- **Stock negativo controlado:** `CHECK (cantidad >= 0 OR negativo_ok = 1)`. Si dos personas sacan a la vez
+  y el segundo excede sin haber confirmado, su batch falla y D1 revierte todo.
+- **Idempotencia ante mala señal:** el id del movimiento lo genera el dispositivo. Un reenvío devuelve el
+  original en vez de duplicar. Esto hace segura la **bandeja offline**: sin señal, el movimiento queda en el
+  teléfono y se envía solo al volver la conexión.
+- **Saldos en la bitácora:** cada movimiento guarda el stock resultante (origen/destino), calculado dentro de la
+  misma transacción.
+- **Rastro sin login:** responsable (texto), id del dispositivo e IP en cada movimiento.
 
 ## Puesta en marcha (local)
 

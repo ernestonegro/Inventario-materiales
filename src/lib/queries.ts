@@ -1,29 +1,32 @@
 import { useQuery } from '@tanstack/react-query';
-import type { Alerta, CatalogoItem, Herramienta, Movimiento, Obra, StockItem, TipoItem } from '../../shared/types';
+import type { Item, Movimiento, Resumen, Ubicacion } from '../../shared/types';
 import { api } from './api';
 
 export const qk = {
-  obras: ['obras'] as const,
-  obra: (id: string) => ['obras', id] as const,
-  stock: (id: string) => ['stock', id] as const,
-  herramientas: (obraId?: string) => ['herramientas', obraId ?? 'todas'] as const,
-  herramienta: (id: string) => ['herramienta', id] as const,
-  movimientos: (obraId: string) => ['movimientos', obraId] as const,
-  catalogo: (tipo?: TipoItem) => ['catalogo', tipo ?? 'todos'] as const,
-  alertas: ['alertas'] as const,
+  items: ['items'] as const,
+  item: (id: string) => ['items', id] as const,
+  ubicaciones: ['ubicaciones'] as const,
+  resumen: ['resumen'] as const,
+  movimientos: (f: object) => ['movimientos', f] as const,
 };
 
-export const useObras = () => useQuery({ queryKey: qk.obras, queryFn: () => api<Obra[]>('/obras') });
-export const useObra = (id: string) => useQuery({ queryKey: qk.obra(id), queryFn: () => api<Obra>(`/obras/${id}`) });
-export const useStock = (id: string) => useQuery({ queryKey: qk.stock(id), queryFn: () => api<StockItem[]>(`/obras/${id}/inventario`) });
-export const useHerramientas = (obraId?: string) =>
-  useQuery({
-    queryKey: qk.herramientas(obraId),
-    queryFn: () => api<Herramienta[]>(`/herramientas${obraId ? `?obra_id=${obraId}` : ''}`),
-  });
-export const useHerramienta = (id: string) => useQuery({ queryKey: qk.herramienta(id), queryFn: () => api<Herramienta>(`/herramientas/${id}`) });
-export const useCatalogo = (tipo?: TipoItem) =>
-  useQuery({ queryKey: qk.catalogo(tipo), queryFn: () => api<CatalogoItem[]>(`/catalogo${tipo ? `?tipo=${tipo}` : ''}`) });
-export const useAlertas = () => useQuery({ queryKey: qk.alertas, queryFn: () => api<Alerta[]>('/alertas') });
-export const fetchMovimientos = (obraId: string, antes?: string) =>
-  api<Movimiento[]>(`/movimientos?obra_id=${obraId}&limit=30${antes ? `&antes=${encodeURIComponent(antes)}` : ''}`);
+/** Todo el catálogo con stock: se filtra en el navegador (búsqueda instantánea, sirve sin señal). */
+export const useItems = () => useQuery({ queryKey: qk.items, queryFn: () => api<Item[]>('/items') });
+export const useItem = (id: string) => useQuery({ queryKey: qk.item(id), queryFn: () => api<Item>(`/items/${id}`), enabled: !!id });
+export const useUbicaciones = () => useQuery({ queryKey: qk.ubicaciones, queryFn: () => api<Ubicacion[]>('/ubicaciones'), staleTime: 5 * 60_000 });
+export const useResumen = () => useQuery({ queryKey: qk.resumen, queryFn: () => api<Resumen>('/resumen'), refetchInterval: 60_000 });
+
+export interface FiltroMov {
+  item_id?: string;
+  ubicacion_id?: string;
+  tipo?: string;
+  desde?: string;
+  hasta?: string;
+  q?: string;
+}
+
+export const qs = (o: object) =>
+  new URLSearchParams(Object.entries(o).filter(([, v]) => v !== undefined && v !== '' && v !== null) as [string, string][]).toString();
+
+export const fetchMovimientos = (f: FiltroMov, cursor?: string, limit = 50) =>
+  api<Movimiento[]>(`/movimientos?${qs({ ...f, cursor, limit: String(limit) })}`);

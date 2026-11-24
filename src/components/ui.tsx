@@ -74,8 +74,8 @@ export const Textarea = (p: TextareaHTMLAttributes<HTMLTextAreaElement>) => <tex
 export function Encabezado({ titulo, subtitulo, volver, accion }: { titulo: string; subtitulo?: string; volver?: string | true; accion?: ReactNode }) {
   const nav = useNavigate();
   return (
-    <header className="sticky top-0 z-20 border-b-4 border-amber-400 bg-neutral-950 text-white">
-      <div className="mx-auto flex max-w-xl items-center gap-2 px-3 py-2">
+    <header className="sticky top-0 z-20 border-b-4 border-amber-400 bg-neutral-950 text-white md:static">
+      <div className="mx-auto flex max-w-5xl items-center gap-2 px-3 py-2">
         {volver && (
           <button
             aria-label="Volver"
@@ -95,7 +95,49 @@ export function Encabezado({ titulo, subtitulo, volver, accion }: { titulo: stri
   );
 }
 
-export const Pagina = ({ children }: { children: ReactNode }) => <main className="mx-auto max-w-xl space-y-4 px-4 pt-4 pb-28">{children}</main>;
+export const Pagina = ({ children, ancha }: { children: ReactNode; ancha?: boolean }) => (
+  <main className={cx('mx-auto space-y-4 px-4 pt-4 pb-40 md:pb-16', ancha ? 'max-w-5xl' : 'max-w-2xl')}>{children}</main>
+);
+
+/** Selector segmentado de botones grandes (tipo de movimiento, estado, etc.). */
+export function Segmentado<T extends string>({
+  opciones,
+  valor,
+  onChange,
+  etiqueta,
+  columnas,
+}: {
+  opciones: { valor: T; texto: ReactNode; clase?: string }[];
+  valor: T;
+  onChange: (v: T) => void;
+  etiqueta: string;
+  columnas?: number;
+}) {
+  return (
+    <div
+      role="radiogroup"
+      aria-label={etiqueta}
+      className="grid gap-1 rounded-xl border-2 border-neutral-950 bg-white p-1"
+      style={{ gridTemplateColumns: `repeat(${columnas ?? opciones.length}, minmax(0, 1fr))` }}
+    >
+      {opciones.map((o) => (
+        <button
+          key={o.valor}
+          type="button"
+          role="radio"
+          aria-checked={valor === o.valor}
+          onClick={() => onChange(o.valor)}
+          className={cx(
+            'min-h-12 rounded-lg px-1 text-sm font-bold leading-tight sm:text-base',
+            valor === o.valor ? (o.clase ?? 'bg-neutral-950 text-white') : 'text-neutral-950 active:bg-neutral-100',
+          )}
+        >
+          {o.texto}
+        </button>
+      ))}
+    </div>
+  );
+}
 
 export function Aviso({ tipo = 'error', children }: { tipo?: 'error' | 'ok' | 'info'; children: ReactNode }) {
   const c = { error: 'bg-red-50 border-red-700 text-red-900', ok: 'bg-green-50 border-green-700 text-green-900', info: 'bg-amber-50 border-amber-500 text-neutral-950' }[tipo];
